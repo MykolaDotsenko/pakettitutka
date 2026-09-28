@@ -2,172 +2,135 @@
 
 [![Quality](https://github.com/MykolaDotsenko/pakettitutka/actions/workflows/quality.yml/badge.svg)](https://github.com/MykolaDotsenko/pakettitutka/actions/workflows/quality.yml)
 
-**A Finland-specific parcel and courier comparison engine built around verified carrier tariffs instead of generic delivery estimates.**
+**A Finland-specific parcel comparison engine built around carrier tariff rules instead of generic delivery estimates.**
 
-[**Open the live app →**](https://pakettitutka.vercel.app) · [Architecture](./ARCHITECTURE.md)
+[**Open the live app →**](https://pakettitutka.vercel.app/) · [Architecture](./ARCHITECTURE.md)
 
 ![Pakettitutka brand](./public/brand/visuals/brand-board.webp)
 
-## Why Finland-specific?
+## Why this is not a “price per kilometre” calculator
 
-A generic “price per kilometre” estimator cannot be genuinely accurate for parcel delivery. Finnish carriers use different commercial models:
+Parcel carriers use different commercial models.
 
-- Posti: consumer parcel sizes;
-- Matkahuolto: consumer parcel sizes;
-- GLS: consumer weight bands plus pickup/door options;
-- PostNord: chargeable weight = max(actual, volumetric) plus fuel surcharge, VAT and possible handling fees;
-- FedEx / UPS / DHL: list rates plus dynamic fuel, area and handling surcharges;
-- DSV: contract/spot freight plus frequently changing fuel surcharges.
+Examples include:
 
-Pakettitutka therefore models each carrier separately and exposes an **accuracy label** for every result.
+- fixed consumer parcel sizes;
+- weight bands;
+- pickup/door-service additions;
+- actual vs volumetric chargeable weight;
+- fuel surcharges;
+- VAT and handling fees;
+- island/ferry surcharges;
+- account/contract pricing that cannot be represented honestly by a public static number.
 
-## Product experience
+Pakettitutka models each supported carrier according to its own published rules and shows an **accuracy/confidence label** rather than pretending every result has the same certainty.
 
-- branded, responsive comparison flow designed for desktop and mobile;
-- transparent pricing confidence instead of a misleading single “estimate”;
-- official tariff links embedded directly in results and carrier cards;
-- separate public/no-contract and published business list-rate modes;
-- no GPS or street address required; an optional business destination postcode is used only to detect PostNord's location-specific island/ferry surcharge;
-- mainland-vs-Åland route selection asks only for location detail that changes a price;
-- accessible controls, focus states and reduced-motion support;
-- Finland-first visual system with a dedicated Pakettitutka asset library;
-- branded web manifest/home-screen metadata and social preview;
-- no service-worker tariff caching: freshness takes priority over offline behavior.
+## Product rules
 
-Brand assets live under `public/brand/` and are split into `logos/`, `visuals/`, and `mockups/`.
+- official tariff/source links are visible in the UI;
+- public/no-contract and published business list-rate modes stay separate;
+- mainland/Åland routing is requested only when it changes pricing;
+- destination postcode is optional and used only where a published surcharge rule actually needs it;
+- unsupported dynamic/account pricing is explained instead of approximated;
+- final carrier checkout/invoice remains authoritative;
+- no service-worker tariff caching — freshness matters more than offline pricing.
 
-## Calculated carriers
+## Pricing model
 
-### Posti — private sender
-
-Official online/OmaPosti domestic prices from 2 June 2026:
-
-| Size | Maximum size | Price |
-| --- | --- | ---: |
-| XXS | 3 × 25 × 35 cm, 2 kg | €7.90 |
-| S | 11 × 32 × 42 cm | €9.90 |
-| M | 19 × 36 × 60 cm | €11.90 |
-| L | 36 × 37 × 60 cm | €16.90 |
-| XL | 40 × 60 × 100 cm | €22.90 |
-| XXL | longest side ≤ 200 cm, length + circumference ≤ 300 cm | €44.90 |
-
-Minimum weight is 100 g. XXS minimum size is 1 × 15 × 15 cm; regular parcels use a 1 × 15 × 25 cm minimum. Maximum weight for S–XXL is 25 kg. Pakettitutka applies Posti's separate Åland tariff when the user selects a mainland ↔ Åland route; no exact postal code is required.
-
-Source: https://www.posti.fi/en/sending/parcels/package-price-lists
-
-### Matkahuolto — private sender
-
-Current prices that the official public domestic page exposes directly:
-
-| Size | Maximum size | Price |
-| --- | --- | ---: |
-| XXS | 3 × 25 × 40 cm | €5.90 |
-| S | 10 × 40 × 55 cm | €8.80 |
-| M | 20 × 40 × 55 cm | €11.80 |
-
-Matkahuolto also offers larger sizes. Pakettitutka deliberately does **not** fill missing current consumer prices from old price lists. For Åland, Matkahuolto uses its international-parcel flow plus a ferry surcharge; Pakettitutka surfaces this as non-calculated coverage rather than inventing a flat total.
-
-Source: https://www.matkahuolto.fi/packages/domestic-parcels
-
-### GLS Finland — private / occasional sender
-
-Official GLSpaketti.fi basic tariff:
-
-- max 1 kg — €24
-- max 3 kg — €29
-- max 15 kg — €59
-- max 25 kg — €79
-- pickup from sender — +€20 / shipment
-- delivery to recipient's door — +€5 / parcel
-- door delivery is mandatory above 15 kg
-
-Source: https://gls-group.com/FI/en/ship-with-gls/Consumers-Small-Businesses/
-
-### PostNord — business/list-rate mode
-
-Pakettitutka calculates PostNord **Automaatti** and **Palvelupiste** from the official 2026 list rate.
-
-Pricing basis:
+A carrier implementation can combine:
 
 ```text
-volumetric weight = volume m³ × 280 kg
-chargeable weight = max(actual weight, volumetric weight)
-base freight       = official weight band
-+ 10.4% fuel surcharge on freight only (effective 1 Sep 2026)
-+ special handling if triggered
-+ 25.5% Finnish VAT on the taxable subtotal
+package dimensions
+actual weight
+volumetric weight
+service/pickup mode
+route/region rules
+published surcharge rules
+tax
+        ↓
+carrier-specific quote
+        ↓
+price + coverage/accuracy explanation
 ```
 
-These are list-rate calculations, not negotiated contract prices.
+For example, a chargeable-weight service can use:
 
-Sources:
-- https://www.postnord.fi/siteassets/pdf/hinnastot/online_hinnastoliite_2026-02-01.pdf
-- https://www.postnord.fi/en/sending/fuel-and-sulphur-surcharge
-- https://www.vero.fi/en/businesses-and-corporations/taxes-and-charges/vat/rates-of-vat/
+```text
+volumetric weight = volume × carrier factor
+chargeable weight = max(actual weight, volumetric weight)
+```
 
-## Carrier directory
+That logic is carrier-specific; it is not shared blindly across every provider.
 
-Pakettitutka also lists major operators that cannot be honestly reduced to one static public price:
+## Data vs calculation logic
 
-- FedEx — 2026 standard list rates + weekly fuel/area/handling surcharges
-- UPS — rate guide + fuel/remote/demand surcharges
-- DHL Express — live quote based on origin/destination, chargeable weight and service
-- DSV Parcel / Schenker — contract/spot pricing; domestic parcel fuel surcharge 16.86% from 16 Sep 2026
-- Budbee / Instabee — active Finnish e-commerce home/locker network; merchant pricing is account-specific
-- Kaukokiito — Finnish nationwide freight/distribution; quote/agreement pricing
-- Jetpak Finland — time-critical same-day/next-day courier; booking-specific quote
-- DHL Freight — domestic/European road freight with changing published surcharges
-- Bring — outbound shipments from Finland and domestic Finland services are discontinued
+Mutable tariff data lives in:
 
-The UI links directly to official carrier sources.
+`src/data/finlandTariffData.ts`
 
-## Tariff maintenance
+Pricing behaviour lives in:
 
-Mutable carrier data is centralized in `src/data/finlandTariffData.ts`: published price bands, source URLs, snapshot date, fuel/VAT constants and PostNord island/ferry postcodes live there. Carrier eligibility, chargeable-weight math and quote composition remain in `src/domain/finlandTariffs.ts`.
+`src/domain/finlandTariffs.ts`
 
-This separation keeps routine tariff refreshes reviewable and reduces the chance of changing pricing algorithms while updating source data.
+This separation keeps routine tariff updates reviewable without mixing them with the algorithms that decide eligibility, chargeable weight and surcharge composition.
 
 ## Engineering rules
 
-- fixed-size boxes are rotation-aware and enforce provider minimum as well as maximum dimensions;
-- girth-based services use longest side + circumference;
-- the UI asks only for mainland-vs-Åland routing because exact postcodes do not change the currently automated tariff formulas;
-- Åland is treated separately where the official tariff differs;
-- no price is invented when an official current tariff is unavailable;
-- public/no-contract and published business list-rate prices are never silently mixed;
-- PostNord fuel surcharge is applied to freight only, excluding additional-service fees;
-- PostNord's €11.63 island/ferry surcharge is applied for official Finnish surcharge postcodes when an optional destination postcode is supplied;
-- final carrier checkout/invoice remains authoritative;
-- unsupported dynamic/account pricing is explained explicitly instead of being approximated.
+- fixed-size boxes are rotation-aware;
+- provider minimum and maximum dimensions are enforced;
+- girth-based services use the carrier's longest-side/circumference rule;
+- Åland is handled separately when the official tariff differs;
+- fuel surcharge is applied only to the components the carrier defines;
+- current public prices are not backfilled from an old list when a current value is unavailable;
+- external provider/account pricing is never presented as a calculated exact quote.
+
+## Carrier coverage
+
+The project contains calculated public/list-rate support where published rules make deterministic calculation possible, and source-linked directory coverage where pricing is dynamic or contract-specific.
+
+Current carrier data and source URLs are maintained in the repository rather than duplicated in this README so pricing updates do not require rewriting the project overview.
 
 ## Stack
 
-- React 19.3
+- React 19
 - TypeScript 6
 - Vite 8
 - Vitest
 - Playwright
 - axe-core
-- ESLint 10
+- ESLint
 - GitHub Actions
 - Vercel
 
-Runtime dependencies remain React + React DOM only. CI also audits production dependencies at high severity, runs lint/typecheck/unit/build, and exercises desktop, Pixel 7 and 320 px narrow-mobile Playwright + axe accessibility checks.
+The runtime dependency surface is intentionally small: React + React DOM.
+
+## Quality
+
+```bash
+npm ci
+npm run check
+npx playwright install chromium
+npm run test:e2e
+```
+
+CI covers linting, type checking, unit tests, production build, dependency audit and browser/accessibility checks across desktop, Pixel-sized mobile and narrow mobile layouts.
 
 ## Run locally
 
 ```bash
 npm ci
 npm run dev
-npm run check
 ```
 
-For browser tests:
+## Accuracy policy
 
-```bash
-npx playwright install chromium
-npm run test:e2e
-```
+Pakettitutka distinguishes:
+
+- deterministic calculations from published rules;
+- partial/public list-rate coverage;
+- carriers that require a live quote or account agreement.
+
+That distinction is a product feature, not an implementation detail: a missing exact price is preferable to a confident-looking invented one.
 
 ## License
 
