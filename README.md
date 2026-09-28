@@ -1,6 +1,6 @@
 # Pakettitutka — Finnish Parcel Price Intelligence
 
-[![Quality](https://github.com/MykolaDotsenko/test-assignment/actions/workflows/quality.yml/badge.svg)](https://github.com/MykolaDotsenko/test-assignment/actions/workflows/quality.yml)
+[![Quality](https://github.com/MykolaDotsenko/pakettitutka/actions/workflows/quality.yml/badge.svg)](https://github.com/MykolaDotsenko/pakettitutka/actions/workflows/quality.yml)
 
 **A Finland-specific parcel and courier comparison engine built around verified carrier tariffs instead of generic delivery estimates.**
 
